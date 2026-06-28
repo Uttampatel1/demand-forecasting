@@ -1,0 +1,22 @@
+# Data / math
+numpy>=1.26,<3.0
+pandas==2.3.3
+
+# Models
+scikit-learn==1.5.2
+statsmodels==0.14.4
+lightgbm==4.5.0
+
+# Prophet is optional. It requires a working CmdStan backend:
+#   pip install prophet==1.1.6
+#   python -m cmdstanpy.install_cmdstan --compiler
+# The pipeline auto-detects Prophet and includes it only if the backend loads.
+prophet==1.1.6
+
+# Viz / dashboard
+matplotlib==3.9.2
+plotly==5.24.1
+streamlit==1.41.1
+
+# Dev / tests
+pytest==8.3.4
