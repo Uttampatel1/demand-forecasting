@@ -47,12 +47,33 @@ synthetic daily sales ─► train/test split (last 28 days = hold-out)
 
 All models implement one interface (`fit` / `predict`), so adding a model or swapping the evaluation target is trivial.
 
+## "Within what error?" — prediction intervals
+
+A point forecast isn't enough to set safety stock. `src/intervals.py` adds
+**split-conformal prediction intervals** that wrap *any* model's point forecast in
+a calibrated band with a finite-sample coverage guarantee and no distributional
+assumptions — hold out the tail of history, measure residuals, pad the forecast:
+
+```python
+from src.intervals import conformal_interval
+from src.models import SARIMAForecaster
+iv = conformal_interval(lambda: SARIMAForecaster(), train, future, alpha=0.1)  # 90% band
+iv.point, iv.lower, iv.upper
+```
+
+There's also an **`EnsembleForecaster`** that averages members (ETS + SARIMA by
+default) to cut forecast-error variance.
+
 ## Tech stack
 
 - **Data/ML:** pandas, NumPy, scikit-learn, statsmodels (ETS, SARIMA), LightGBM, Prophet (optional)
+- **Models:** SeasonalNaive, ETS, SARIMA, LightGBM, **Ensemble**, Prophet (opt)
+- **Uncertainty:** split-conformal prediction intervals (`src/intervals.py`)
 - **Viz:** matplotlib, Plotly
 - **App:** Streamlit dashboard
-- **Tests:** pytest (12 tests)
+- **Observability:** structured logging via `src/logging_utils.py` (`LOG_LEVEL` env, per-model timing)
+- **Deploy:** `Dockerfile` + `docker-compose.yml`; GitHub Actions CI runs the suite
+- **Tests:** pytest (19 tests)
 
 ## Setup & run
 
@@ -83,12 +104,17 @@ python -m cmdstanpy.install_cmdstan --compiler
 ├── src/
 │   ├── generate_data.py     # synthetic retail demand generator
 │   ├── features.py          # lag + calendar feature engineering
-│   ├── models.py            # SeasonalNaive, ETS, SARIMA, LightGBM, Prophet
+│   ├── models.py            # SeasonalNaive, ETS, SARIMA, LightGBM, Ensemble, Prophet
+│   ├── intervals.py         # split-conformal prediction intervals
 │   ├── evaluate.py          # MAPE/RMSE/MAE/sMAPE + hold-out backtest
+│   ├── logging_utils.py     # structured logging + timing
 │   └── run_experiment.py    # full comparison + plot
 ├── notebooks/
 │   └── forecasting_story.ipynb   # the analysis narrative
-├── tests/                   # 12 pytest tests
+├── tests/                   # 19 pytest tests
+├── Dockerfile               # containerised Streamlit app
+├── docker-compose.yml
+├── .github/workflows/ci.yml
 ├── requirements.txt
 └── .gitignore
 ```

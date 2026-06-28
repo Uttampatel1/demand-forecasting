@@ -46,4 +46,6 @@ def test_lightgbm_recursive_forecast_shape():
 
 
 def test_default_models_nonempty():
-    assert len(default_models(include_prophet=False)) == 4
+    names = [m.name for m in default_models(include_prophet=False)]
+    assert len(names) == 5
+    assert "Ensemble(mean)" in names

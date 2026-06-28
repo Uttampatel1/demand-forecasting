@@ -204,12 +204,36 @@ class ProphetForecaster(Forecaster):
         return forecast["yhat"].clip(lower=0).to_numpy()
 
 
+class EnsembleForecaster(Forecaster):
+    """Average several forecasters — a cheap, robust hedge against any one model.
+
+    Ensembling rarely wins every period, but it reliably reduces the *variance*
+    of forecast error: when SARIMA over-reacts and ETS under-reacts, their mean
+    is usually closer than either alone.
+    """
+
+    name = "Ensemble(mean)"
+
+    def __init__(self, members: list[Forecaster] | None = None) -> None:
+        self.members = members or [ETSForecaster(), SARIMAForecaster()]
+
+    def fit(self, train: pd.DataFrame) -> "EnsembleForecaster":
+        for m in self.members:
+            m.fit(train)
+        return self
+
+    def predict(self, future: pd.DataFrame) -> np.ndarray:
+        preds = np.vstack([m.predict(future) for m in self.members])
+        return preds.mean(axis=0)
+
+
 def default_models(include_prophet: bool = True) -> list[Forecaster]:
     models: list[Forecaster] = [
         SeasonalNaiveForecaster(),
         ETSForecaster(),
         SARIMAForecaster(),
         LightGBMForecaster(),
+        EnsembleForecaster(),
     ]
     if include_prophet and prophet_available():
         models.append(ProphetForecaster())

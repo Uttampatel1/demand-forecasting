@@ -9,7 +9,10 @@ import os
 import pandas as pd
 
 from .evaluate import BacktestResult, backtest
+from .logging_utils import get_logger, log_timing
 from .models import default_models
+
+log = get_logger(__name__)
 
 DATA_PATH = os.path.join("data", "sales.csv")
 RESULTS_PATH = os.path.join("data", "results.csv")
@@ -45,13 +48,16 @@ def run(horizon: int = 28) -> tuple[pd.DataFrame, dict[str, BacktestResult]]:
     df = load_sales()
     series = build_series(df)  # company-wide daily demand
 
+    log.info("Backtesting %d models on %d days, horizon=%d",
+             len(default_models()), len(series), horizon)
     results: dict[str, BacktestResult] = {}
     rows = []
     for model in default_models():
         try:
-            res = backtest(series, model, horizon=horizon)
+            with log_timing(log, f"backtest {model.name}"):
+                res = backtest(series, model, horizon=horizon)
         except Exception as exc:  # noqa: BLE001 - skip a misbehaving model, keep the rest
-            print(f"(skipped {model.name}: {exc})")
+            log.warning("skipped %s: %s", model.name, exc)
             continue
         results[model.name] = res
         rows.append({"model": model.name, **res.metrics})

@@ -1,0 +1,8 @@
+services:
+  app:
+    build: .
+    image: demand-forecasting:latest
+    container_name: demand-forecasting
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
