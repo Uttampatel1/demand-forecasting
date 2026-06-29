@@ -8,3 +8,6 @@ data/
 .pytest_cache/
 .ipynb_checkpoints/
 *.log
+
+# Portfolio dashboard preview (tracked despite *.png rule)
+!dashboard.png

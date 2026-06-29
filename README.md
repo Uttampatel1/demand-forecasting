@@ -6,6 +6,23 @@ This project forecasts daily retail demand and **rigorously compares** a naive b
 
 ---
 
+<!-- portfolio-visuals -->
+
+## 🔧 How it works
+
+![Demand / Sales Forecasting — architecture & data flow](./architecture.svg)
+
+*End-to-end flow from input to output — see [`architecture.svg`](./architecture.svg).*
+
+## 📊 Live dashboard
+
+![Demand / Sales Forecasting — interactive Streamlit dashboard](./dashboard.png)
+
+*Real screenshot of the Streamlit app on synthetic data — no API key needed. Run it with `streamlit run dashboard.py`.*
+
+---
+
+
 ## Key results (28-day hold-out, company-wide daily demand)
 
 | Model | MAPE | RMSE | MAE |
