@@ -41,6 +41,26 @@ This project forecasts daily retail demand and **rigorously compares** a naive b
 - Always report the **seasonal-naive baseline**: here it's a strong, near-free benchmark that any model must beat to earn its keep.
 - **LightGBM** isn't the winner here, but it's the right tool when you have **many SKUs, noisy series, and rich features** (price, weather, promotions) — it scales where fitting one SARIMA per series doesn't.
 
+## Rolling-origin (walk-forward) validation — don't trust a single hold-out
+
+One hold-out reports the error on *one* slice of history, which can be lucky. `src/backtesting.py`
+re-fits each model at several cut-offs and forecasts the next horizon from each, producing an
+**error distribution** instead of a single number — and the ranking changes:
+
+| Model | MAPE (mean ± std) over 4 origins | RMSE (mean) |
+|-------|:--------------------------------:|------------:|
+| **SARIMA** ✅ robust best | **3.58% ± 0.99** | 64.5 |
+| Ensemble (mean) | 4.36% ± 0.87 | 89.7 |
+| ETS (Holt-Winters) | 5.87% ± 1.17 | 138.0 |
+| Seasonal-Naive (baseline) | 7.69% ± 3.40 | 193.7 |
+| LightGBM | 7.75% ± 2.13 | 158.2 |
+
+*(Reproducible from `python -m src.run_experiment`. Expanding window by default; `window="sliding"` for fixed-length training.)*
+
+**Why this matters:** on the single 28-day hold-out, **Seasonal-Naive looked 2nd-best (3.92%)** — but across
+four re-fits it's actually one of the **worst and by far the most volatile** (±3.40). Walk-forward catches
+that; a single split hides it. SARIMA wins *and* is the steadiest, which is the model you'd actually deploy.
+
 ## Demo
 
 ![Forecast vs Actual](data/forecast_vs_actual.png)
@@ -90,7 +110,7 @@ default) to cut forecast-error variance.
 - **App:** Streamlit dashboard
 - **Observability:** structured logging via `src/logging_utils.py` (`LOG_LEVEL` env, per-model timing)
 - **Deploy:** `Dockerfile` + `docker-compose.yml`; GitHub Actions CI runs the suite
-- **Tests:** pytest (19 tests)
+- **Tests:** pytest (26 tests)
 
 ## Setup & run
 
@@ -123,12 +143,13 @@ python -m cmdstanpy.install_cmdstan --compiler
 │   ├── features.py          # lag + calendar feature engineering
 │   ├── models.py            # SeasonalNaive, ETS, SARIMA, LightGBM, Ensemble, Prophet
 │   ├── intervals.py         # split-conformal prediction intervals
+│   ├── backtesting.py       # rolling-origin (walk-forward) validation
 │   ├── evaluate.py          # MAPE/RMSE/MAE/sMAPE + hold-out backtest
 │   ├── logging_utils.py     # structured logging + timing
 │   └── run_experiment.py    # full comparison + plot
 ├── notebooks/
 │   └── forecasting_story.ipynb   # the analysis narrative
-├── tests/                   # 19 pytest tests
+├── tests/                   # 26 pytest tests
 ├── Dockerfile               # containerised Streamlit app
 ├── docker-compose.yml
 ├── .github/workflows/ci.yml
@@ -141,5 +162,4 @@ python -m cmdstanpy.install_cmdstan --compiler
 - **Hierarchical forecasting** with reconciliation across store × product.
 - **Prediction intervals** (quantile LightGBM / SARIMA CIs) for safety-stock sizing.
 - **Exogenous drivers**: price, weather, marketing spend.
-- **Backtesting over rolling origins** for a more robust accuracy estimate.
 - Automated **model selection per series** (let each SKU pick its best model).

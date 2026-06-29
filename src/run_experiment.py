@@ -8,6 +8,7 @@ import os
 
 import pandas as pd
 
+from .backtesting import rolling_origin_backtest
 from .evaluate import BacktestResult, backtest
 from .logging_utils import get_logger, log_timing
 from .models import default_models
@@ -102,6 +103,31 @@ def save_outputs(table: pd.DataFrame, results: dict[str, BacktestResult]) -> Non
         print(f"(plot skipped: {exc})")
 
 
+def run_rolling(horizon: int = 28, n_origins: int = 4) -> pd.DataFrame:
+    """Walk-forward comparison: mean ± std of each metric across several origins."""
+    df = load_sales()
+    series = build_series(df)
+    log.info("Rolling-origin backtest: horizon=%d, origins=%d", horizon, n_origins)
+    rows = []
+    for model in default_models():
+        try:
+            with log_timing(log, f"rolling backtest {model.name}"):
+                res = rolling_origin_backtest(
+                    series, model, horizon=horizon, n_origins=n_origins
+                )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("skipped %s: %s", model.name, exc)
+            continue
+        rows.append({
+            "model": model.name,
+            "MAPE_mean": res.mean_metrics["MAPE"],
+            "MAPE_std": res.std_metrics["MAPE"],
+            "RMSE_mean": res.mean_metrics["RMSE"],
+            "origins": res.n_origins,
+        })
+    return pd.DataFrame(rows).sort_values("MAPE_mean").reset_index(drop=True)
+
+
 def main() -> None:
     table, results = run()
     print("\n=== Model comparison (28-day holdout, company-wide demand) ===\n")
@@ -110,6 +136,11 @@ def main() -> None:
     best = table.iloc[0]
     print(f"\nBest model: {best['model']}  (MAPE {best['MAPE']}%, RMSE {best['RMSE']})")
     print(f"Results -> {RESULTS_PATH}\nPlot    -> {PLOT_PATH}")
+
+    rolling = run_rolling()
+    print("\n=== Rolling-origin walk-forward (4 origins, 28-day horizon) ===")
+    print("Honest error distribution — mean ± std across re-fits:\n")
+    print(rolling.to_string(index=False))
 
 
 if __name__ == "__main__":
